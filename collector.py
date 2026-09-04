@@ -1,35 +1,78 @@
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+
+BASE_URL = "https://www.education.gov.dz/"
 
 
-URL = "https://www.education.gov.dz/"
+KEYWORDS = [
+    "مسابقة",
+    "مسابقات",
+    "توظيف",
+    "التوظيف",
+    "تسجيل",
+    "التسجيل",
+    "مناظرة",
+    "مباراة",
+    "إعلان",
+    "إعلانات",
+    "بلاغ",
+    "منشور",
+    "مترشحين",
+    "المترشحين",
+    "نتائج"
+]
 
 
 def get_education_news():
-    response = requests.get(URL, timeout=20)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            BASE_URL,
+            timeout=20,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
 
-    soup = BeautifulSoup(response.text, "html.parser")
+        response.raise_for_status()
 
-    results = []
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    for link in soup.find_all("a", href=True):
-        title = link.get_text(" ", strip=True)
-        href = link["href"]
+        results = []
+        seen_urls = set()
 
-        if title and href.startswith("http"):
+        for link in soup.find_all("a", href=True):
+
+            title = link.get_text(" ", strip=True)
+            url = urljoin(BASE_URL, link["href"])
+
+            if not title:
+                continue
+
+            title_lower = title.lower()
+
+            if not any(keyword in title_lower for keyword in KEYWORDS):
+                continue
+
+            if url in seen_urls:
+                continue
+
+            seen_urls.add(url)
+
             results.append({
                 "title": title,
-                "url": href
+                "url": url
             })
 
-    return results
+        return results[:15]
+
+    except Exception as error:
+        print("Collector error:", error)
+        return []
 
 
 if __name__ == "__main__":
     news = get_education_news()
 
-    for item in news[:20]:
+    for item in news:
         print(item["title"])
         print(item["url"])
-        print("-" * 50)
+        print("-" * 40)
